@@ -111,8 +111,7 @@ parameters=c("alpha",
 output.location="~/Output.RData"
 
 ###
-### Source 'ALDOccupancyMCMC' function
-### either locally or from GitHub
+### Source 'ALDOccupancyMCMC' function (locally or GitHub)
 ###
 
 script=getURL(
