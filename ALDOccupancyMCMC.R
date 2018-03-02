@@ -71,8 +71,8 @@ ALDOccupancyMCMC=function(data,
     ## Tuning parameters
     ##
 
-    alpha.tune= 0.4237573
-    beta.tune=c(0.1899601,0.2321735,0.4457457,0.1718543)
+    alpha.tune= 0.1
+    beta.tune=c(0.01,0.01,0.01,0.01)
     accept.alpha=0
     accept.beta=rep(0,4)
 

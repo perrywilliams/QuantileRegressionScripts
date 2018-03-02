@@ -65,7 +65,7 @@ data=list(y=y,
 ### MCMC Settings
 ###
 
-n.iter=10000
+n.iter=50000
 checkpoint=1000
 
 ###
@@ -114,12 +114,14 @@ output.location="~/Output.RData"
 ### Fit model with 'ALDOccupancyMCMC' function
 ###
 
-script <- getURL(
+script=getURL(
     paste("https://raw.githubusercontent.com/",
           "perrywilliams/QuantileRegressionScripts/",
-          "master/ALDOccupancyMCMC.R",sep=""),ssl.verifypeer=FALSE)
+          "master/ALDOccupancyMCMC.R",sep=""),
+    ssl.verifypeer=FALSE)
 eval(parse(text = script))
 
+sys.time=Sys.time()
 ALDOccupancyMCMC(data=data,
                  tau=0.5,
                  inits=inits,
@@ -127,6 +129,7 @@ ALDOccupancyMCMC(data=data,
                  n.iter=n.iter,
                  checkpoint=checkpoint,
                  output.location=output.location)
+Sys.time()-sys.time
 
 ###
 ### Load and plot MCMC chains
@@ -135,10 +138,12 @@ ALDOccupancyMCMC(data=data,
 load(output.location)
 par(mfrow=c(4,2))
 for(i in 1:4){
-    plot(MCMC.Chains$alpha[,i],type='l')
+    plot(MCMC.Chains$alpha[,i],type='l',
+         ylab="")
     abline(h=alpha.truth[i],col=2)
 }
 for(i in 1:4){
-    plot(MCMC.Chains$beta[,i],type='l')
+    plot(MCMC.Chains$beta[,i],type='l',
+         ylab="")
         abline(h=beta.truth[i],col=2)
 }
