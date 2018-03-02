@@ -157,7 +157,7 @@ ALDOccupancyMCMC=function(data,
         ##
 
         y.mat=y[z1,]
-         y.vec=c(y.mat)
+        y.vec=c(y.mat)
         p.vec=rep(p[z1,1],max(J))
         u.vec=rep(NA,length(y.vec))
         u.vec=r.truncALD(z=y.vec,mu=p.vec,tau=tau,sigma=sigma)
@@ -204,6 +204,7 @@ ALDOccupancyMCMC=function(data,
                 beta=beta.star
                 phi=phi.star
                 accept.beta[i]=accept.beta[i]+1
+            }
         }
 
 
