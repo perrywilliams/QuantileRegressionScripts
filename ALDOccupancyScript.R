@@ -8,6 +8,7 @@
 
 rm(list=ls())
 library(ald)
+library(RCurl)
 
 ###
 ### Simulate occupancy data
@@ -15,7 +16,6 @@ library(ald)
 
 tau=0.5
 
-set.seed(2018)
 n=500
 m=4
 alpha.truth=rnorm(4)
@@ -57,8 +57,8 @@ data=list(y=y,
 ### MCMC Settings
 ###
 
-n.iter=10000
-checkpoint=1000
+n.iter=40000
+checkpoint=10000
 
 ###
 ### Prior hyperparameters
@@ -107,6 +107,13 @@ output.location="~/Output.RData"
 ###
 
 source("~/Dropbox/GitHub/QuantileOccupancyModeling/ALDOccupancyMCMC.R")
+text=getURL("https://github.com/perrywilliams/QuantileRegressionScripts/blob/master/ALDOccupancyMCMC.R")
+source(text)
+script <- getURL(
+    paste("https://raw.githubusercontent.com/",
+          "perrywilliams/QuantileRegressionScripts/",
+          "master/ALDOccupancyMCMC.R",sep=""),ssl.verifypeer=FALSE)
+eval(parse(text = script))
 
 ALDOccupancyMCMC(data=data,
                  tau=0.5,
@@ -115,6 +122,7 @@ ALDOccupancyMCMC(data=data,
                  n.iter=n.iter,
                  checkpoint=checkpoint,
                  output.location=output.location)
+
 
 ###
 ### Load and plot MCMC chains
