@@ -123,7 +123,6 @@ ALDOccupancyMCMC(data=data,
                  checkpoint=checkpoint,
                  output.location=output.location)
 
-
 ###
 ### Load and plot MCMC chains
 ###

@@ -59,8 +59,6 @@ ALDOccupancyMCMC=function(data,
         return(fn_val)
     }
 
-
-
     ##
     ## Tuning parameters
     ##
