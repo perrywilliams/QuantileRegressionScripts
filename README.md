@@ -1,2 +1,2 @@
 # QuantileOccupancyModeling
-This is the R code associated with a manuscript on quantile occupancy modeling. 
+R scripts for using quantile regression for occupancy modeling.
