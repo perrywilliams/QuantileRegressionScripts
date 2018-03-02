@@ -14,7 +14,7 @@ library(RCurl)
 ### Quantile
 ###
 
-tau=0.5
+tau=0.95
 
 ###
 ### Simulate occupancy data
@@ -123,7 +123,7 @@ eval(parse(text = script))
 
 sys.time=Sys.time()
 ALDOccupancyMCMC(data=data,
-                 tau=0.5,
+                 tau=tau,
                  inits=inits,
                  parameters=parameters,
                  n.iter=n.iter,

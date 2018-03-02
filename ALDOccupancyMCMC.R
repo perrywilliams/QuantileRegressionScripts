@@ -71,9 +71,9 @@ ALDOccupancyMCMC=function(data,
     ## Tuning parameters
     ##
 
-    alpha.tune= 0.1
-    beta.tune=c(0.01,0.01,0.01,0.01)
-    accept.alpha=0
+    alpha.tune= rep(0.01,length(alpha))
+    beta.tune=rep(0.01,length(beta))
+    accept.alpha=rep(0,4)
     accept.beta=rep(0,4)
 
     ##
@@ -167,91 +167,45 @@ ALDOccupancyMCMC=function(data,
         ##  Sample alpha
         ##
 
-        alpha.star=rnorm(length(alpha),alpha,alpha.tune)
-        p.star=matrix(W%*%alpha.star,n,max(J))
-        mh1=sum(log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau)))+
-            sum(dnorm(alpha.star,alpha.mean,sqrt(alpha.var),log=TRUE))
-        mh2=sum(log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau)))+
-            sum(dnorm(alpha,alpha.mean,sqrt(alpha.var),log=TRUE))
-
-        mh=exp(mh1-mh2)
-        if(mh>min(1,runif(1))){
-            alpha=alpha.star
-            p=p.star
-            accept.alpha=accept.alpha+1
+        for(i in 1:length(alpha)){
+            alpha.tmp=rnorm(1,alpha[i],alpha.tune[i])
+            alpha.star=alpha
+            alpha.star[i]=alpha.tmp
+            p.star=matrix(W%*%alpha.star,n,max(J))
+            mh1=sum(
+                log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau))+
+                dnorm(alpha.star[i],alpha.mean,sqrt(alpha.var),log=TRUE))
+            mh2=sum(
+                log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau))+
+                dnorm(alpha[i],alpha.mean,sqrt(alpha.var),log=TRUE))
+            mh=exp(mh1-mh2)
+            if(mh>min(1,runif(1))){
+                alpha=alpha.star
+                p=p.star
+                accept.alpha[i]=accept.alpha[i]+1
+            }
         }
 
         ##
-        ## Sample beta0
+        ## Sample beta
         ##
 
-        beta0.star=rnorm(1,beta[1],beta.tune[1])
-        beta.star=c(beta0.star,beta[2:m])
-        phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
-            dnorm(beta0.star,beta.mean,sqrt(beta.var),log=TRUE)
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
-            dnorm(beta[1],beta.mean,sqrt(beta.var),log=TRUE)
-        mh=exp(mh1-mh2)
-        if(min(mh,1)>runif(1)){
-            beta=beta.star
-            phi=phi.star
-            accept.beta[1]=accept.beta[1]+1
+        for(i in 1:length(beta)){
+            beta.tmp=rnorm(1,beta[i],beta.tune[i])
+            beta.star=beta
+            beta.star[i]=beta.tmp
+            phi.star=X%*%beta.star
+            mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau))+
+                    dnorm(beta.star[i],beta.mean,sqrt(beta.var),log=TRUE))
+            mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau))+
+                    dnorm(beta[i],beta.mean,sqrt(beta.var),log=TRUE))
+            mh=exp(mh1-mh2)
+            if(min(mh,1)>runif(1)){
+                beta=beta.star
+                phi=phi.star
+                accept.beta[i]=accept.beta[i]+1
         }
 
-        ##
-        ## Sample beta1
-        ##
-
-        beta1.star=rnorm(1,beta[2],beta.tune[2])
-        beta.star=c(beta[1],beta1.star,beta[3:m])
-        phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
-            dnorm(beta1.star,beta.mean,sqrt(beta.var),log=TRUE)
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
-            dnorm(beta[2],beta.mean,sqrt(beta.var),log=TRUE)
-        mh=exp(mh1-mh2)
-        if(min(mh,1)>runif(1)){
-            beta=beta.star
-            phi=phi.star
-            accept.beta[2]=accept.beta[2]+1
-        }
-
-        ##
-        ## Sample beta2
-        ##
-
-        beta2.star=rnorm(1,beta[3],beta.tune[3])
-        beta.star=c(beta[1:2],beta2.star,beta[4:m])
-        phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
-            dnorm(beta2.star,beta.mean,sqrt(beta.var),log=TRUE)
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
-            dnorm(beta[3],beta.mean,sqrt(beta.var),log=TRUE)
-        mh=exp(mh1-mh2)
-        if(min(mh,1)>runif(1)){
-            beta=beta.star
-            phi=phi.star
-            accept.beta[3]=accept.beta[3]+1
-        }
-
-        ##
-        ## Sample beta3
-        ##
-
-        beta3.star=rnorm(1,beta[4],beta.tune[4])
-        beta.star=c(beta[1:3],beta3.star)
-        phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
-            dnorm(beta3.star,beta.mean,sqrt(beta.var),log=TRUE)
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
-            dnorm(beta[4],beta.mean,sqrt(beta.var),log=TRUE)
-        mh=exp(mh1-mh2)
-        if(min(mh,1)>runif(1)){
-            beta=beta.star
-            phi=phi.star
-            accept.beta[4]=accept.beta[4]+1
-        }
 
         ##
         ## Save samples
