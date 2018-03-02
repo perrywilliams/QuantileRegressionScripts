@@ -73,8 +73,8 @@ ALDOccupancyMCMC=function(data,
 
     alpha.tune= rep(0.01,length(alpha))
     beta.tune=rep(0.01,length(beta))
-    accept.alpha=rep(0,4)
-    accept.beta=rep(0,4)
+    accept.alpha=rep(0,length(alpha))
+    accept.beta=rep(0,length(beta))
 
     ##
     ## Dimensions
@@ -250,6 +250,9 @@ ALDOccupancyMCMC=function(data,
                              beta.tune*0.9,
                              beta.tune)
                       )
+            ##
+            ## Output results
+            ##
 
             save(MCMC.Chains,file=output.location)
         }
