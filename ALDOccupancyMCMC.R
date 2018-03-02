@@ -172,7 +172,7 @@ ALDOccupancyMCMC=function(data,
         mh1=sum(log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau)))+
             sum(dnorm(alpha.star,alpha.mean,sqrt(alpha.var),log=TRUE))
         mh2=sum(log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau)))+
-            sum(dnorm(alhpa,alpha.mean,sqrt(alpha.var),log=TRUE))
+            sum(dnorm(alpha,alpha.mean,sqrt(alpha.var),log=TRUE))
 
         mh=exp(mh1-mh2)
         if(mh>min(1,runif(1))){
