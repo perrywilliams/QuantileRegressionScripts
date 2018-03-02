@@ -111,7 +111,8 @@ parameters=c("alpha",
 output.location="~/Output.RData"
 
 ###
-### Fit model with 'ALDOccupancyMCMC' function
+### Source 'ALDOccupancyMCMC' function
+### either locally or from GitHub
 ###
 
 script=getURL(
@@ -120,6 +121,15 @@ script=getURL(
           "master/ALDOccupancyMCMC.R",sep=""),
     ssl.verifypeer=FALSE)
 eval(parse(text = script))
+
+## source(paste("~/Dropbox/GitHub/",
+##              "QuantileRegression-master/",
+##              "QuantileRegression/ALDOccupancyMCMC.R",
+##              sep=""))
+
+###
+### Fit model with 'ALDOccupancyMCMC' function
+###
 
 sys.time=Sys.time()
 ALDOccupancyMCMC(data=data,

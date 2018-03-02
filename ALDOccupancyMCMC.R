@@ -237,12 +237,12 @@ ALDOccupancyMCMC=function(data,
             ## Update tuning parameters
             ##
 
-            if(accept.alpha/k<0.3){
-                alpha.tune=alpha.tune*0.9
-            }
-            if(accept.alpha/k>0.5){
-                alpha.tune=alpha.tune*1.1
-            }
+            alpha.tune=ifelse(accept.alpha/k>0.5,
+                              alpha.tune*1.1,
+                       ifelse(accept.alpha/k<0.3,
+                              alpha.tune*0.9,
+                              alpha.tune)
+                       )
 
             beta.tune=ifelse(accept.beta/k>0.5,
                              beta.tune*1.1,
