@@ -5,7 +5,6 @@ ALDOccupancyMCMC=function(data,
                           n.iter=5000,
                           checkpoint=checkpoint,
                           output.location){
-
     ##
     ##  Subroutines and Packages
     ##
@@ -49,7 +48,7 @@ ALDOccupancyMCMC=function(data,
         max=ifelse(z==1,1,g)
         u=min+(max-min)*runif(length(z))
         fn_val=ifelse(z==0&trunc<=0,
-               -(abs(trunc)-log(runif(length(z))))/(1-tau),
+                      -(abs(trunc)-log(runif(length(z))))/(1-tau),
                ifelse(z==1&trunc>0,
                       trunc-log(runif(length(z)))/tau,
                       q.ALD(prob=u,mu=0,sigma=1,p=tau)
@@ -59,7 +58,14 @@ ALDOccupancyMCMC=function(data,
         return(fn_val)
     }
 
+    ##
+    ## Priors
+    ##
 
+    alpha.mean=priors$alpha.prior[1]
+    alpha.var=priors$alpha.prior[2]
+    beta.mean=priors$beta.prior[1]
+    beta.var=priors$beta.prior[2]
 
     ##
     ## Tuning parameters
@@ -132,9 +138,9 @@ ALDOccupancyMCMC=function(data,
 
         phi.temp=(pALD(phi,0,sigma,tau,TRUE)*
                   (1-pALD(p[,1],0,sigma,tau,TRUE))^J)/
-            (
-                (1-pALD(phi,0,sigma,tau,TRUE))+
-                (pALD(phi,0,sigma,tau,TRUE)*(1-pALD(p[,1],0,sigma,tau,TRUE))^J)
+            ((1-pALD(phi,0,sigma,tau,TRUE))+
+             (pALD(phi,0,sigma,tau,TRUE)*
+              (1-pALD(p[,1],0,sigma,tau,TRUE))^J)
             )
         z[y0]=rbinom(sum(y0),1,round(phi.temp[y0],3))
         z1=(z==1)
@@ -144,25 +150,17 @@ ALDOccupancyMCMC=function(data,
         ## Sample v
         ##
 
-        v=sapply(1:n,function(i)rtruncALD(
-                                    z=z[i],
-                                    mu=phi[i],
-                                    tau=tau,
-                                    sigma=sigma))
+        v=r.truncALD(z=z,mu=phi,tau=tau,sigma=sigma)
 
         ##
         ## Sample u
         ##
 
         y.mat=y[z1,]
-        y.vec=c(y.mat)
-        p.vec=rep(p[z1],max(J))
+         y.vec=c(y.mat)
+        p.vec=rep(p[z1,1],max(J))
         u.vec=rep(NA,length(y.vec))
-        u.vec=sapply(1:length(u.vec),
-                     function(i)rtruncALD(z=y.vec[i],
-                                          mu=p.vec[i],
-                                          tau=tau,
-                                          sigma=sigma))
+        u.vec=r.truncALD(z=y.vec,mu=p.vec,tau=tau,sigma=sigma)
         u[z1,]=u.vec
 
         ##
@@ -171,8 +169,11 @@ ALDOccupancyMCMC=function(data,
 
         alpha.star=rnorm(length(alpha),alpha,alpha.tune)
         p.star=matrix(W%*%alpha.star,n,max(J))
-        mh1=sum(log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau)))
-        mh2=sum(log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau)))
+        mh1=sum(log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau)))+
+            sum(dnorm(alhpa.star,alpha.mean,sqrt(alpha.var),log=TRUE))
+        mh2=sum(log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau)))+
+            sum(dnorm(alhpa,alpha.mean,sqrt(alpha.var),log=TRUE))
+
         mh=exp(mh1-mh2)
         if(mh>min(1,runif(1))){
             alpha=alpha.star
@@ -187,8 +188,10 @@ ALDOccupancyMCMC=function(data,
         beta0.star=rnorm(1,beta[1],beta.tune[1])
         beta.star=c(beta0.star,beta[2:m])
         phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))
+        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
+            dnorm(beta0.star,beta.mean,sqrt(beta.var),log=TRUE)
+        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
+            dnorm(beta[1],beta.mean,sqrt(beta.var),log=TRUE)
         mh=exp(mh1-mh2)
         if(min(mh,1)>runif(1)){
             beta=beta.star
@@ -203,8 +206,10 @@ ALDOccupancyMCMC=function(data,
         beta1.star=rnorm(1,beta[2],beta.tune[2])
         beta.star=c(beta[1],beta1.star,beta[3:m])
         phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))
+        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
+            dnorm(beta1.star,beta.mean,sqrt(beta.var),log=TRUE)
+        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
+            dnorm(beta[2],beta.mean,sqrt(beta.var),log=TRUE)
         mh=exp(mh1-mh2)
         if(min(mh,1)>runif(1)){
             beta=beta.star
@@ -219,8 +224,10 @@ ALDOccupancyMCMC=function(data,
         beta2.star=rnorm(1,beta[3],beta.tune[3])
         beta.star=c(beta[1:2],beta2.star,beta[4:m])
         phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))
+        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
+            dnorm(beta2.star,beta.mean,sqrt(beta.var),log=TRUE)
+        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
+            dnorm(beta[3],beta.mean,sqrt(beta.var),log=TRUE)
         mh=exp(mh1-mh2)
         if(min(mh,1)>runif(1)){
             beta=beta.star
@@ -235,8 +242,10 @@ ALDOccupancyMCMC=function(data,
         beta3.star=rnorm(1,beta[4],beta.tune[4])
         beta.star=c(beta[1:3],beta3.star)
         phi.star=X%*%beta.star
-        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))
-        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))
+        mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau)))+
+            dnorm(beta3.star,beta.mean,sqrt(beta.var),log=TRUE)
+        mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau)))+
+            dnorm(beta[4],beta.mean,sqrt(beta.var),log=TRUE)
         mh=exp(mh1-mh2)
         if(min(mh,1)>runif(1)){
             beta=beta.star

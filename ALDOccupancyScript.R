@@ -11,10 +11,14 @@ library(ald)
 library(RCurl)
 
 ###
-### Simulate occupancy data
+### Quantile
 ###
 
 tau=0.5
+
+###
+### Simulate occupancy data
+###
 
 n=500
 m=4
@@ -47,6 +51,10 @@ u.vec=c(u.truth[z.truth==1,])
 y.vec=ifelse(u.vec>0,1,0)
 y[z.truth==1,]=y.vec
 
+###
+### Bundle data for MCMC sampler
+###
+
 data=list(y=y,
           X=X,
           W=W,
@@ -57,8 +65,8 @@ data=list(y=y,
 ### MCMC Settings
 ###
 
-n.iter=40000
-checkpoint=10000
+n.iter=10000
+checkpoint=1000
 
 ###
 ### Prior hyperparameters
@@ -106,9 +114,6 @@ output.location="~/Output.RData"
 ### Fit model with 'ALDOccupancyMCMC' function
 ###
 
-source("~/Dropbox/GitHub/QuantileOccupancyModeling/ALDOccupancyMCMC.R")
-text=getURL("https://github.com/perrywilliams/QuantileRegressionScripts/blob/master/ALDOccupancyMCMC.R")
-source(text)
 script <- getURL(
     paste("https://raw.githubusercontent.com/",
           "perrywilliams/QuantileRegressionScripts/",
