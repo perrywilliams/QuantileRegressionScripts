@@ -170,7 +170,7 @@ ALDOccupancyMCMC=function(data,
         alpha.star=rnorm(length(alpha),alpha,alpha.tune)
         p.star=matrix(W%*%alpha.star,n,max(J))
         mh1=sum(log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau)))+
-            sum(dnorm(alhpa.star,alpha.mean,sqrt(alpha.var),log=TRUE))
+            sum(dnorm(alpha.star,alpha.mean,sqrt(alpha.var),log=TRUE))
         mh2=sum(log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau)))+
             sum(dnorm(alhpa,alpha.mean,sqrt(alpha.var),log=TRUE))
 
