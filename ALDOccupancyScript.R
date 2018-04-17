@@ -1,10 +1,10 @@
-####################################################
+#############################################################################
 ###
 ### ALD Occupancy Model
 ###
 ### Created 01Mar2018
 ###
-####################################################
+#############################################################################
 
 rm(list=ls())
 library(ald)
@@ -36,7 +36,7 @@ w3=x2^2
 W=cbind(1,w1,w2,w3)
 phi.truth=X%*%beta.truth
 v.truth=sapply(1:n,function(i)rALD(1,mu=phi.truth[i],sigma=1,p=tau))
-z.truth=ifelse(v.truth<0,0,1)
+z.truth=ifelse(v.truth<=0,0,1)
 p.truth=W%*%alpha.truth
 u.truth=matrix(NA,n,max(J))
 for(i in 1:3){

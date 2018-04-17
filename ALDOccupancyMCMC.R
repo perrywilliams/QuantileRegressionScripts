@@ -95,10 +95,10 @@ ALDOccupancyMCMC=function(data,
     z0=(z==0)
     X=data$X
     W=data$W
-    phi=X%*%beta
+    psi=X%*%beta
     p=W%*%alpha
     u=matrix(rnorm(n*max(J),p,1),n,max(J))
-    v=matrix(rnorm(n,phi,1),n,1)
+    v=matrix(rnorm(n,psi,1),n,1)
     y0=ifelse(apply(y,1,sum)==0,TRUE,FALSE)
 
     ##
@@ -119,8 +119,8 @@ ALDOccupancyMCMC=function(data,
     if('v'%in%parameters){
         MCMC.Chains$v=matrix(,n.iter,n)
     }
-    if('phi'%in%parameters){
-        MCMC.Chains$phi=matrix(,n.iter,n)
+    if('psi'%in%parameters){
+        MCMC.Chains$psi=matrix(,n.iter,n)
     }
     if('p'%in%parameters){
         MCMC.Chains$p=matrix(,n.iter,n)
@@ -136,13 +136,13 @@ ALDOccupancyMCMC=function(data,
         ## Sample z
         ##
 
-        phi.temp=(pALD(phi,0,sigma,tau,TRUE)*
+        psi.temp=(pALD(psi,0,sigma,tau,TRUE)*
                   (1-pALD(p[,1],0,sigma,tau,TRUE))^J)/
-            ((1-pALD(phi,0,sigma,tau,TRUE))+
-             (pALD(phi,0,sigma,tau,TRUE)*
+            ((1-pALD(psi,0,sigma,tau,TRUE))+
+             (pALD(psi,0,sigma,tau,TRUE)*
               (1-pALD(p[,1],0,sigma,tau,TRUE))^J)
             )
-        z[y0]=rbinom(sum(y0),1,round(phi.temp[y0],3))
+        z[y0]=rbinom(sum(y0),1,round(psi.temp[y0],3))
         z1=(z==1)
         z0=(z==0)
 
@@ -150,7 +150,7 @@ ALDOccupancyMCMC=function(data,
         ## Sample v
         ##
 
-        v=r.truncALD(z=z,mu=phi,tau=tau,sigma=sigma)
+        v=r.truncALD(z=z,mu=psi,tau=tau,sigma=sigma)
 
         ##
         ## Sample u
@@ -194,15 +194,15 @@ ALDOccupancyMCMC=function(data,
             beta.tmp=rnorm(1,beta[i],beta.tune[i])
             beta.star=beta
             beta.star[i]=beta.tmp
-            phi.star=X%*%beta.star
-            mh1=sum(log(dALD.v(y=v,mu=phi.star,sigma=sigma,tau=tau))+
+            psi.star=X%*%beta.star
+            mh1=sum(log(dALD.v(y=v,mu=psi.star,sigma=sigma,tau=tau))+
                     dnorm(beta.star[i],beta.mean,sqrt(beta.var),log=TRUE))
-            mh2=sum(log(dALD.v(y=v,mu=phi,sigma=sigma,tau=tau))+
+            mh2=sum(log(dALD.v(y=v,mu=psi,sigma=sigma,tau=tau))+
                     dnorm(beta[i],beta.mean,sqrt(beta.var),log=TRUE))
             mh=exp(mh1-mh2)
             if(min(mh,1)>runif(1)){
                 beta=beta.star
-                phi=phi.star
+                psi=psi.star
                 accept.beta[i]=accept.beta[i]+1
             }
         }
@@ -224,12 +224,16 @@ ALDOccupancyMCMC=function(data,
         if('v'%in%parameters){
             MCMC.Chains$v[k,]=v
         }
-        if('phi'%in%parameters){
-            MCMC.Chains$phi[k,]=phi
+        if('psi'%in%parameters){
+            MCMC.Chains$psi[k,]=psi
         }
         if('p'%in%parameters){
             MCMC.Chains$p[k,]=p[,1]
         }
+
+        ##
+        ## Checkpoint
+        ##
 
         if(k%%checkpoint==0){
 
@@ -237,12 +241,13 @@ ALDOccupancyMCMC=function(data,
             ## Update tuning parameters
             ##
 
-            alpha.tune=ifelse(accept.alpha/k>0.5,
-                              alpha.tune*1.1,
-                       ifelse(accept.alpha/k<0.3,
-                              alpha.tune*0.9,
-                              alpha.tune)
-                       )
+            if(accept.alpha/k<0.3){
+                alpha.tune=alpha.tune*0.9
+            }
+            if(accept.alpha/k>0.5){
+                alpha.tune=alpha.tune*1.1
+            }
+
 
             beta.tune=ifelse(accept.beta/k>0.5,
                              beta.tune*1.1,
@@ -250,6 +255,28 @@ ALDOccupancyMCMC=function(data,
                              beta.tune*0.9,
                              beta.tune)
                       )
+
+            if(accept.theta/k<0.3){
+                theta.tune=theta.tune*0.9
+            }
+            if(accept.theta/k>0.5){
+                theta.tune=theta.tune*1.1
+            }
+
+            if(accept.kappa/k<0.3){
+                kappa.tune=kappa.tune*0.9
+            }
+            if(accept.kappa/k>0.5){
+                kappa.tune=kappa.tune*1.1
+            }
+
+            if(accept.odp/k<0.3){
+                odp.tune=odp.tune*0.9
+            }
+            if(accept.odp/k>0.5){
+                odp.tune=odp.tune*1.1
+            }
+
             ##
             ## Output results
             ##

@@ -93,7 +93,7 @@ parameters=c("alpha",
 ### Output location
 ###
 
-output.location="~/Dropbox/GitHub/QuantileOccupancyModeling/Output.RData"
+output.location="~/Dropbox/QuantileRegression/Probit.RData"
 
 ###
 ### Fit model with 'ProbitOccupancyMCMC' function
