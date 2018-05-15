@@ -77,11 +77,14 @@ ALDOccupancyMCMC=function(data,
     accept.beta=rep(0,length(beta))
 
     ##
-    ## Dimensions
+    ## Data and Dimensions
     ##
 
+    y=as.matrix(data$y)
     n=dim(data$y)[1]
-    m=length(inits$beta)
+    m=length(inits$alpha)
+    q=length(inits$beta)
+
     J=data$J
 
     ##
@@ -95,10 +98,8 @@ ALDOccupancyMCMC=function(data,
     z0=(z==0)
     X=data$X
     W=data$W
-    psi=X%*%beta
-    p=W%*%alpha
-    u=matrix(rnorm(n*max(J),p,1),n,max(J))
-    v=matrix(rnorm(n,psi,1),n,1)
+    psi=1-p.ALD(-X%*%beta,mu=0,sigma=1,p=tau)
+    p=1-p.ALD(-W%*%alpha,mu=0,sigma=1,p=tau)
     y0=ifelse(apply(y,1,sum)==0,TRUE,FALSE)
 
     ##
@@ -116,14 +117,14 @@ ALDOccupancyMCMC=function(data,
     if('z'%in%parameters){
         MCMC.Chains$z=matrix(,n.iter,n)
     }
-    if('v'%in%parameters){
-        MCMC.Chains$v=matrix(,n.iter,n)
-    }
     if('psi'%in%parameters){
         MCMC.Chains$psi=matrix(,n.iter,n)
     }
     if('p'%in%parameters){
         MCMC.Chains$p=matrix(,n.iter,n)
+    }
+    if('tuners'%in%parameters){
+        MCMC.Chains$tuners=matrix(,n.iter,m+q)
     }
 
     ##
@@ -136,32 +137,15 @@ ALDOccupancyMCMC=function(data,
         ## Sample z
         ##
 
-        psi.temp=(pALD(psi,0,sigma,tau,TRUE)*
-                  (1-pALD(p[,1],0,sigma,tau,TRUE))^J)/
-            ((1-pALD(psi,0,sigma,tau,TRUE))+
-             (pALD(psi,0,sigma,tau,TRUE)*
-              (1-pALD(p[,1],0,sigma,tau,TRUE))^J)
+        psi.temp=(pALD(psi,0,1,tau,TRUE)*
+                  (1-pALD(p[,1],0,1,tau,TRUE))^J)/
+            ((1-pALD(psi,0,1,tau,TRUE))+
+             (pALD(psi,0,1,tau,TRUE)*
+              (1-pALD(p[,1],0,1,tau,TRUE))^J)
             )
         z[y0]=rbinom(sum(y0),1,round(psi.temp[y0],3))
         z1=(z==1)
         z0=(z==0)
-
-        ##
-        ## Sample v
-        ##
-
-        v=r.truncALD(z=z,mu=psi,tau=tau,sigma=sigma)
-
-        ##
-        ## Sample u
-        ##
-
-        y.mat=y[z1,]
-        y.vec=c(y.mat)
-        p.vec=rep(p[z1,1],max(J))
-        u.vec=rep(NA,length(y.vec))
-        u.vec=r.truncALD(z=y.vec,mu=p.vec,tau=tau,sigma=sigma)
-        u[z1,]=u.vec
 
         ##
         ##  Sample alpha
@@ -171,13 +155,13 @@ ALDOccupancyMCMC=function(data,
             alpha.tmp=rnorm(1,alpha[i],alpha.tune[i])
             alpha.star=alpha
             alpha.star[i]=alpha.tmp
-            p.star=matrix(W%*%alpha.star,n,max(J))
-            mh1=sum(
-                log(dALD.m(y=u[z1,],mu=p.star[z1,],sigma=sigma,tau=tau))+
-                dnorm(alpha.star[i],alpha.mean,sqrt(alpha.var),log=TRUE))
-            mh2=sum(
-                log(dALD.m(y=u[z1,],mu=p[z1,],sigma=sigma,tau=tau))+
-                dnorm(alpha[i],alpha.mean,sqrt(alpha.var),log=TRUE))
+            p.star=matrix(1-p.ALD(-W%*%alpha.star,mu=0,sigma=1,p=tau),n,1)
+            mh1=sum(dbinom(y[z1,],1,p.star[z1,],log=TRUE))+
+                sum(dnorm(alpha.star[i],alpha.mean,sqrt(alpha.var),
+                          log=TRUE))
+            mh2=sum(dbinom(y[z1,],1,p[z1,],log=TRUE))+
+                sum(dnorm(alpha[i],alpha.mean,sqrt(alpha.var),
+                          log=TRUE))
             mh=exp(mh1-mh2)
             if(mh>min(1,runif(1))){
                 alpha=alpha.star
@@ -194,11 +178,14 @@ ALDOccupancyMCMC=function(data,
             beta.tmp=rnorm(1,beta[i],beta.tune[i])
             beta.star=beta
             beta.star[i]=beta.tmp
-            psi.star=X%*%beta.star
-            mh1=sum(log(dALD.v(y=v,mu=psi.star,sigma=sigma,tau=tau))+
-                    dnorm(beta.star[i],beta.mean,sqrt(beta.var),log=TRUE))
-            mh2=sum(log(dALD.v(y=v,mu=psi,sigma=sigma,tau=tau))+
-                    dnorm(beta[i],beta.mean,sqrt(beta.var),log=TRUE))
+            psi.star=matrix(1-p.ALD(-X%*%beta.star,mu=0,sigma=1,p=tau),n,1)
+            mh1=sum(dbinom(z,1,psi.star,log=TRUE))+
+                sum(dnorm(beta.star[i],beta.mean,sqrt(beta.var),
+                          log=TRUE))
+            mh2=sum(dbinom(z,1,psi,log=TRUE))+
+                sum(dnorm(beta[i],beta.mean,sqrt(beta.var),
+                          log=TRUE))
+
             mh=exp(mh1-mh2)
             if(min(mh,1)>runif(1)){
                 beta=beta.star
@@ -221,14 +208,14 @@ ALDOccupancyMCMC=function(data,
         if('z'%in%parameters){
             MCMC.Chains$z[k,]=z
         }
-        if('v'%in%parameters){
-            MCMC.Chains$v[k,]=v
-        }
         if('psi'%in%parameters){
             MCMC.Chains$psi[k,]=psi
         }
         if('p'%in%parameters){
             MCMC.Chains$p[k,]=p[,1]
+        }
+        if('tuners'%in%parameters){
+            MCMC.Chains$tuners[k,]=c(alpha.tune,beta.tune)
         }
 
         ##
@@ -241,13 +228,12 @@ ALDOccupancyMCMC=function(data,
             ## Update tuning parameters
             ##
 
-            if(accept.alpha/k<0.3){
-                alpha.tune=alpha.tune*0.9
-            }
-            if(accept.alpha/k>0.5){
-                alpha.tune=alpha.tune*1.1
-            }
-
+            alpha.tune=ifelse(accept.alpha/k>0.5,
+                              alpha.tune*1.1,
+                       ifelse(accept.alpha/k<0.3,
+                              alpha.tune*0.9,
+                              alpha.tune)
+                       )
 
             beta.tune=ifelse(accept.beta/k>0.5,
                              beta.tune*1.1,
@@ -256,32 +242,12 @@ ALDOccupancyMCMC=function(data,
                              beta.tune)
                       )
 
-            if(accept.theta/k<0.3){
-                theta.tune=theta.tune*0.9
-            }
-            if(accept.theta/k>0.5){
-                theta.tune=theta.tune*1.1
-            }
-
-            if(accept.kappa/k<0.3){
-                kappa.tune=kappa.tune*0.9
-            }
-            if(accept.kappa/k>0.5){
-                kappa.tune=kappa.tune*1.1
-            }
-
-            if(accept.odp/k<0.3){
-                odp.tune=odp.tune*0.9
-            }
-            if(accept.odp/k>0.5){
-                odp.tune=odp.tune*1.1
-            }
-
             ##
             ## Output results
             ##
 
-            save(MCMC.Chains,file=out.loc)
+
         }
     }
+    return(MCMC.Chains)
 }

@@ -1,9 +1,8 @@
 #########################################################################
 ###
-### Script to analyze the effect of noise polution on
-### cavity-nesting birds using binomial linear mixed model and
-### Bayesian quantile regression
-### Uses function "ALD_Binomial_GLMM_MCMC.R"
+### ALD Occupancy Model
+###
+### Created 01Mar2018
 ###
 #########################################################################
 
@@ -28,8 +27,7 @@ run.chain.2pl.list=function(tau=tau.v,
                             parameters=parameters,
                             n.iter=n.iter,
                             checkpoint=checkpoint,
-                            out.loc=out.loc.l,
-                            parallel=TRUE
+                            out.loc=out.loc.l
                             ){
     chain.list=mclapply(1:length(tau),
                         function(j){
@@ -39,7 +37,7 @@ run.chain.2pl.list=function(tau=tau.v,
 
                             ## Run the chain on this core
                             this.chain=
-                                ALD_Binomial_GLMM_MCMC(data=data,
+                                ALD_Binomial_GLM_MCMC(data=data,
                                                        tau=this.tau,
                                                        inits=inits,
                                                        parameters=
@@ -48,9 +46,7 @@ run.chain.2pl.list=function(tau=tau.v,
                                                        checkpoint=
                                                            checkpoint,
                                                        out.loc=
-                                                           this.out.loc,
-                                                       parallel=
-                                                           parallel
+                                                           this.out.loc
                                                        )
                             return(this.chain)
                         },
@@ -63,6 +59,17 @@ run.chain.2pl.list=function(tau=tau.v,
 }
 
 ###
+### calc CDF of ALD
+###
+
+p.ALD=function(q,mu=0,sigma=1,p=0.5){
+        acum=ifelse(q<mu,
+                    p*exp((1-p)*(q-mu)/sigma),
+                    1-(1-p)*exp(-(p)*(q-mu)/sigma))
+        return(acum)
+}
+
+###
 ### Quantiles
 ###
 
@@ -70,90 +77,114 @@ tau.v=c(0.1,0.2,0.3,0.4,0.6,0.7,0.8,0.9)
 ## tau.v=0.5
 
 ###
-### Species ("JUTI","ATFL","BEWR","WEBL","MOBL")
-###
-
-## species="JUTI" done (100k iterations)
-## species="ATFL" done (100k iterations)
-## species="BEWR" done (100k iterations)
-## species="WEBL" done (100k iterations)
-species="ATFL"
-
-###
 ### Load real data
 ###
 
-KleistData=read.csv(paste("~/Dropbox/Projects/QuantileRegression/",
-               "kleist_et_al_dryad.csv",sep=""))
+ThreshData=read.csv(paste0("/Users/pwill/Dropbox/Projects/",
+                "QuantileRegression/3552231/",
+                "Supplement_Avian_data.csv"))
+ThreshData=ThreshData[!is.na(ThreshData$AGE),]
+
+###
+### Species:  MGWA (no), OCWA (yes:broad,age), SWTH (yes:con,age),
+###           WIFL (no), WIWA (no)
+###
+
+species="OCWA"
 
 ###
 ### Data
 ###
 
-SpeciesData.tmp=KleistData
-SpeciesData=SpeciesData.tmp[SpeciesData.tmp[,6]==species,]
-unoccData.tmp=KleistData
-unoccData=unoccData.tmp[unoccData.tmp[,7]==0,]
-SpeciesData=rbind(SpeciesData,unoccData)
+y=apply(ThreshData[,grepl(species,names(ThreshData))],1,max)
+y=matrix(y,,1)
+J=apply(!is.na(y),1,sum)
+n=dim(y)[1]
 
 ###
-### Response Variable
+### Occupancy Covariates
 ###
 
-y=SpeciesData$occupancy
-n=length(y)
+con=(ThreshData$CONIFER)
+broad=(ThreshData$BROAD)
+dbroad=(ThreshData$DECBROAD)
+hwd=(ThreshData$HWD)
+hwd2=(ThreshData$HWD2000M)
+ele=(ThreshData$ELEVM)
+age=(ThreshData$AGE)
 
 ###
-### 'Fixed' effects
+### Occupancy Model
 ###
 
-noise=scale(SpeciesData$noise)
-fc=scale(SpeciesData$tree_cover_box)
-d=scale(SpeciesData$distance)
-
-## Model
-X=cbind(noise,fc,d)
-
-out=bayesQR(formula=y~X,quantile=seq(0.1,0.9,0.1),ndraw=20000,)
-summary(out)
-
-
-
-
-
+X=cbind(con, broad, dbroad, hwd, ele, age)     #threshold model
+m=dim(X)[2]
 
 ###
-### 'Random' effects
+### Fit with bayesQR()
 ###
 
-site=SpeciesData$site
-nb=SpeciesData$nest_box
-pair=as.factor(SpeciesData$pair)
-bs=as.factor(SpeciesData$box_status)
+quantvec=seq(0.1,0.9,0.1)
+out=bayesQR(y~X,quantile=quantvec,alasso=TRUE,ndraw=30000)
+summary(out,burnin=5000)
+plot(out,plottype="trace",burnin=15000)
 
-## Model
-W=model.matrix(y~1)
+plot(out,plottype="quantile",burnin=15000)
+
+
+
+ind=1:9
+bar=summary(out[[1]])[[1]]$betadraw[2,]
+for(i in 2:9){
+    out[[i]]=bayesQR(y~X,quantile=ind[i]/10,ndraw=n.iter)
+    foo=summary(out[[i]])[[1]]$betadraw[2,]
+    bar=rbind(bar,foo)
+}
+
+plot(seq(.1,.9,.1),bar[,1],pch=16,ylim=c(-20.5,20.5))
+segments(seq(.1,.9,.1),bar[,2],seq(.1,.9,.1),bar[,1])
+segments(seq(.1,.9,.1),bar[,3],seq(.1,.9,.1),bar[,1])
+abline(h=0)
 
 ###
-### Dimensions
+### Detection Covariates
 ###
 
-p=dim(X)[2]
-m=dim(W)[2]
+W=matrix(1,n,1)
 
-X
-#########################################################################
-### Simulate data with known parameters to evaluate model
-#########################################################################
+###
+### Detection Model
+###
 
-## set.seed(2018)
-## mu.alpha.truth=5
-## var.alpha.truth=1.5^2
-## alpha.truth=rnorm(m,mu.alpha.truth,sqrt(var.alpha.truth))
-## beta.truth=rnorm(p,0,sqrt(10^2))
-## mu.truth=X%*%beta.truth+W%*%alpha.truth
-## v.truth=sapply(1:n,function(i)rALD(1,mu=mu.truth[i],sigma=1,p=tau.v))
-## y=ifelse(v.truth>0,1,0)
+W=W
+q=dim(W)[2]
+
+## ######################################################################
+## ### Alternatively, simulate occupancy data
+## ######################################################################
+
+## n=500
+## m=4
+## q=4
+## alpha.truth=rnorm(m)
+## beta.truth=rnorm(q)
+## sigma=1
+## J=rep(3,n)
+## x1=rnorm(n)
+## x2=rnorm(n)
+## x3=rnorm(n)
+## X=cbind(1,x1,x2,x3)
+## w1=rnorm(n)
+## w2=rnorm(n)
+## w3=x2^2
+## W=cbind(1,w1,w2,w3)
+## psi.truth=1-p.ALD(-X%*%beta.truth,mu=0,sigma=1,p=0.5)
+## z.truth=rbinom(n,1,psi.truth)
+## p.truth=1-p.ALD(-W%*%alpha.truth,mu=0,sigma=1,p=0.5)
+## y=matrix(0,n,max(J))
+## for(i in 1:max(J)){
+##      y[z.truth==1,i]=rbinom(sum(z.truth),1,p.truth[z.truth==1])
+## }
 
 #########################################################################
 
@@ -162,68 +193,45 @@ X
 ###
 
 data=list(y=y,
-          X=X,
-          W=W
+          X=X## ,
+          ## W=W,
+          ## J=J
           )
 
 ###
 ### MCMC Settings
 ###
 
-n.iter=100000
+n.iter=30000
 checkpoint=100
 
 ###
 ### Prior hyperparameters
 ###
 
+## alpha
+alpha.mean=0
+alpha.var=10
+
 ## beta
 beta.mean=0
-beta.var=100^2
+beta.var=10
 
-## mu.alpha
-mu.alpha.mean=0
-mu.alpha.var=10^2
-
-## var.alpha
-var.alpha.s=1
-var.alpha.r=0.5
-
-priors=list(mu.alpha.prior=c(mu.alpha.mean,mu.alpha.var),
-            beta.prior=c(beta.mean,beta.var),
-            var.alpha.prior=c(var.alpha.s,var.alpha.r)
+priors=list(alpha.prior=c(alpha.mean,alpha.var),
+            beta.prior=c(beta.mean,beta.var)
             )
 
 ###
 ### Starting Values
 ###
 
-beta=c(-0.4755743, -0.5875835)
-beta=rnorm(dim(X)[2],beta.mean,1)
-mu.alpha=rnorm(1,mu.alpha.mean,sqrt(mu.alpha.var))
-var.alpha=1/rgamma(1,shape=var.alpha.s,rate=var.alpha.r)
-alpha=c(-17.242589,
-        -10.036379,
-        -1.549096,
-        -19.083194,
-        -1.950155,
-        -9.867848,
-        -11.497288,
-        -7.766612,
-        -6.752701,
-        -12.906468,
-        3.137763,
-        -4.679458)
-alpha=rnorm(dim(W)[2],mu.alpha,sqrt(var.alpha))
-
-mu=X%*%beta+W%*%alpha
-v=sapply(1:n,function(i)rALD(1,mu=mu[i],sigma=1,p=tau.v))
+alpha=matrix(rnorm(q),,1)
+beta=matrix(rnorm(m),,1)
+z=matrix(ifelse(apply(y,1,sum)>0,1,0),n,1)
 
 inits=list(alpha=alpha,
            beta=beta,
-           v=v,
-           mu.alpha=mu.alpha,
-           var.alpha=var.alpha
+           z=z
            )
 
 ###
@@ -232,10 +240,8 @@ inits=list(alpha=alpha,
 
 parameters=c("alpha",
              "beta",
-             "mu.alpha",
-             "var.alpha",
-             "tuners"
-             )
+             "tuners",
+             "t")
 
 ###
 ### Output location
@@ -244,27 +250,28 @@ parameters=c("alpha",
 out.loc.l=list()
 for(i in 1:length(tau.v)){
     out.loc.l[[i]]=paste("~/Dropbox/Projects/QuantileRegression/",
-                         "ModelOutput/Box/",
+                         "Threshold/",
                          species,
                          "/MCMC.Output.",
                          tau.v[i],
                          ".RData",sep="")
 }
 
+
 ###
-### Source 'ALD_Binomial_GLMM_MCMC' function (locally or GitHub)
+### Source 'ALDOccupancyMCMC' function (locally or GitHub)
 ###
 
 ## script=getURL(
 ##     paste("https://raw.githubusercontent.com/",
 ##           "perrywilliams/QuantileRegressionScripts/",
-##           "master/ALDOccupancyMCMC.R",sep=""),
+##           "master/ALDOccupancyMCMC2.R",sep=""),
 ##     ssl.verifypeer=FALSE)
 ## eval(parse(text = script))
 
 source(paste("~/Dropbox/GitHub/",
              "QuantileRegression-master/",
-             "QuantileRegression/ALD_Binomial_GLMM_MCMC.R",
+             "QuantileRegression/ALD_Binomial_GLM_Threshold.R",
              sep=""))
 
 #########################################################################
@@ -278,12 +285,11 @@ MCMCOutput=run.chain.2pl.list(tau=tau.v,
                               parameters=parameters,
                               n.iter=n.iter,
                               checkpoint=checkpoint,
-                              out.loc=out.loc.l,
-                              parallel=FALSE
+                              out.loc=out.loc.l
                               )
 Sys.time()-sys.time
 save(MCMCOutput,file=paste("~/Dropbox/Projects/QuantileRegression/",
-                           "ModelOutput/Box/",
+                           "ModelOutput/Threshold/",
                            species,
                            "/MCMC.Output.RData",
                            sep=""))
@@ -293,17 +299,16 @@ save(MCMCOutput,file=paste("~/Dropbox/Projects/QuantileRegression/",
 #########################################################################
 
 load(paste("~/Dropbox/Projects/QuantileRegression/",
-           "ModelOutput/Box/",
+           "ModelOutput/Threshold/",
            species,
            "/MCMC.Output.RData",
            sep=""))
 
-(status=sum(!is.na(MCMCOutput[[1]]$alpha[,1])))
+(status=sum(!is.na(MCMCOutput[[1]]$beta[,1])))
 (burn=round(status/10))
-thin=10
+thin=1
 ind=seq(burn,status,thin)
 length(ind)
-acf(MCMCOutput[[1]]$beta[ind,1])
 
 #########################################################################
 ### Check convergence
@@ -319,55 +324,45 @@ for(j in 1:length(tau.v)){
         plot(MCMCOutput[[j]]$alpha[ind,i],
              type='l',
              ylab="")
-        ## abline(h=alpha.truth[i],col=2)
+         ## abline(h=alpha.truth[i],col=2)
         plot(MCMCOutput[[j]]$tuner[ind,i],
              type='l',
              ylab="")
         print(i)
     }
-   ## readline()
 }
 
 ###
 ### Trace plots of beta
 ###
 
-par(mfrow=c(2,2),mar=c(4,4,1,1))
+par(mfrow=c(3,2),mar=c(4,4,1,1))
 for(j in 1:length(tau.v)){
-    for(i in 1:p){
+    for(i in 1:m){
         plot(MCMCOutput[[j]]$beta[,i],type='l',
              ylab="")
         ## abline(h=beta.truth[i],col=2)
-        ## plot(MCMCOutput[[j]]$tuner[,m+i],
-        ##      type='l',
-        ##      ylab="")
+        plot(MCMCOutput[[j]]$tuner[,i],
+             type='l',
+             ylab="")
     }
+    readline()
 }
 
-###
-### Trace plots of mu.alpha
-###
-
-par(mfrow=c(1,2),mar=c(4,4,1,1))
-plot(MCMCOutput[[1]]$mu.alpha[ind,1],type='l',
-     ylab="")
 
 ###
-### Trace plots of var.alpha
+### Trace plots of t
 ###
 
-plot(MCMCOutput[[1]]$var.alpha[ind,1],type='l',
-     ylab="")
+plot(MCMCOutput[[1]]$t,type='l')
+
 
 #########################################################################
 ### Quantile regression inference
 #########################################################################
 
-beta=3
+beta=1
 
-## beta 1 = noise
-## beta 2 = fc
-## beta 3 = dist
 betas=matrix(,length(ind),length(tau.v))
 for(i in 1:length(tau.v)){
     betas[,i]=MCMCOutput[[i]]$beta[ind,beta]
@@ -388,6 +383,33 @@ bar$tau=as.factor(bar$tau)
 ggplot(bar, aes(x=tau, y=beta)) +
     geom_violin()
 
+###
+### Look at prob(occ|tau)
+###
+
+rm(foo)
+tau=0.5
+
+beta.tau=MCMCOutput[[tau*10]]$beta[ind,]
+X=cbind(1,0)
+mu=X%*%t(beta.tau)
+p.occ=1-p.ALD(q=-mu,mu=0,sigma=1,p=tau)
+i=0
+foo=data.frame(i,t(p.occ),tau)
+for(i in 2:18){
+    X=cbind(1,i)
+    mu=X%*%t(beta.tau)
+    p.occ=1-p.ALD(q=-mu,mu=0,sigma=1,p=tau)
+    bar=data.frame(i,t(p.occ),tau)
+    foo=rbind(foo,bar)
+}
+foo=as.data.frame(foo)
+names(foo)=c("X","Y","tau")
+foo$X=as.factor(foo$X)
+
+ggplot(foo, aes(x=X, y=Y)) +
+    geom_violin()+
+    ylim(0,1)
 
 
 b.m=apply(betas,2,mean)
@@ -396,7 +418,7 @@ b.u=apply(betas,2,quantile,.975)
 
 x.axs=c(0.1,0.2,0.3,0.4,0.6,0.7,0.8,0.9)
 plot(x.axs,b.m,
-     ylim=c(-5,1))
+     ylim=c(-5,5))
 abline(h=0)
 segments(x.axs,b.l,x.axs,b.m)
 segments(x.axs,b.u,x.axs,b.m)
